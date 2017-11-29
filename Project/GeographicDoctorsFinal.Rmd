@@ -1,0 +1,88 @@
+---
+title: "GeographicDr"
+author: "Issy Belzil and Mikaela Murgoitio"
+date: '2017-11-14'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+suppressMessages(library(ggmap))
+library(leaflet)
+library(ggmap)
+library(dplyr)
+library(tidyr)
+load("/Users/mikaelamurgoitio/Desktop/DataVisualization/Medicare/providerspokane.RDA")
+View(providerspokane)
+```
+
+# Make subset dataset for Internal Medicine, Gastroenterology, and Nephrology only as Provider Types:
+```{r}
+FilterProvider = providerspokane[c(2,3,6,8:12, 14)]
+Providor <- c("Internal Medicine","Gastroenterology", "Nephrology")
+FilterProvider <- filter(FilterProvider, Provider.Type == Providor)
+## Create Address column
+FilterProvider$Address = paste(FilterProvider$Street.Address.1.of.the.Provider,FilterProvider$City.of.the.Provider,FilterProvider$State.Code.of.the.Provider,FilterProvider$Zip.Code.of.the.Provider, sep = ",")
+FilterProvider$Address
+```
+# Finding the Longitude and Latid
+```{r}
+# Create whatislatlon function:
+whatislatlon=function(mydata,addressindata)
+  {locs=geocode(as.character(unique(mydata[,addressindata])))
+    locs$address=unique(mydata[,addressindata])
+    mydata$latitude=locs$lat[ match(mydata[,addressindata],locs$address)]
+    mydata$longitude=locs$lon[ match(mydata[,addressindata],locs$address)]
+    return(mydata)
+}
+## Use function to find 
+GeoProvider=whatislatlon(FilterProvider, "Address")
+View(GeoProvider)
+## 
+GeoProvider$location <- paste(GeoProvider$longitude, GeoProvider$latitude, sep=",")
+View(GeoProvider)
+```
+# Create map of area:
+```{r}
+location=c(-117.415206,47.6477698)
+map=get_map(location=location,maptype="roadmap",source="google",zoom=11)
+providermap=ggmap(map)
+print(providermap)
+```
+# Add Provider.Type locations: 
+FIX TRANSPARENCY
+```{r}
+providermap=providermap+geom_point(data=GeoProvider,aes(longitude,latitude,color=Provider.Type),size=4, alpha=.01)
+print(providermap)
+```
+
+
+
+# 2) Create an interactive map that does the same as the static map in point 2, above. In addition, this map should cluster the points using the addMarkerCluster option and also provide information, when a point is clicked, on the complete name, complete address, and gender of the provider.
+```{r}
+library(leaflet) #rstudio package
+leaflet() %>% addTiles()
+
+## Adding points of attractions - addCircleMarkers
+leaflet() %>% addTiles()%>%addCircleMarkers(data=GeoProvider )
+
+# Adding POA as marksers - addMarkets
+Name = paste('Full Name: ',GeoProvider$First.Name.of.the.Provider, GeoProvider$Last.Name.Organization.Name.of.the.Provider)
+Address = paste('Address: ',GeoProvider$Address)
+Gender = paste('Gender: ', GeoProvider$Gender.of.the.Provider)
+Info = paste(Name,Address,Gender)
+
+leaflet() %>% addTiles()%>%addMarkers(data=GeoProvider,popup=~Info)
+
+
+```
+
+
+
+
+
+
+
+
